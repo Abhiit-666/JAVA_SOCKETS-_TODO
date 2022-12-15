@@ -1,5 +1,9 @@
 import java.io.*;
 import java.net.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.*;
 
 class ToDoListServer {
@@ -15,21 +19,22 @@ class ToDoListServer {
     }
 
     public void startServer() throws IOException {
-        // Create a ServerSocket to listen for incoming connections on port 8080
-        ServerSocket serverSocket = new ServerSocket(8080);
+        try (ServerSocket serverSocket = new ServerSocket(8080)) {
 
-        // Print a message to the console to let us know the server is running
-        System.out.println("To-do list server is running on port 8080...");
+            // Print a message to the console to let us know the server is running
+            System.out.println("To-do list server is running on port 8080...");
 
-        while (true) {
-            // Accept an incoming client connection
-            Socket clientSocket = serverSocket.accept();
+            while (true) {
 
-            // Create a new thread to handle the client's requests
-            Thread clientHandler = new Thread(new ClientHandler(clientSocket));
+                // Accept an incoming client connection
+                Socket clientSocket = serverSocket.accept();
 
-            // Start the client handler thread
-            clientHandler.start();
+                // Create a new thread to handle the client's requests
+                Thread clientHandler = new Thread(new ClientHandler(clientSocket));
+
+                // Start the client handler thread
+                clientHandler.start();
+            }
         }
     }
 
@@ -60,16 +65,36 @@ class ToDoListServer {
         }
     }
 
+    // class for jdbc connection
+    public class JDBCConnection {
+        public Connection conn;
+
+        public JDBCConnection() {
+            try {
+
+                conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/TODO", "root", "abhijit1");
+
+            } catch (Exception e) {
+                System.out.println(e);
+
+            }
+
+        }
+    }
+
     // This class will handle requests from a single client
-    private class ClientHandler implements Runnable {
-        // The socket that the client is connected to
+
+    private class ClientHandler extends JDBCConnection implements Runnable {
         private Socket clientSocket;
 
+        // The socket that the client is connected to
         public ClientHandler(Socket clientSocket) {
             this.clientSocket = clientSocket;
+
         }
 
         public void run() {
+
             try {
                 // Create input and output streams for the client socket
                 DataInputStream input = new DataInputStream(clientSocket.getInputStream());
@@ -91,11 +116,26 @@ class ToDoListServer {
                             break;
 
                         case 2:
+                            /*
+                             * String description = input.readUTF();
+                             * boolean isComplete = input.readBoolean();
+                             * String sql = "INSERT INTO tasks (description, isComplete) VALUES (?, ?)";
+                             * try {
+                             * PreparedStatement pstmt = conn.prepareStatement(sql);
+                             * pstmt.setString(1, description);
+                             * pstmt.setBoolean(2, isComplete);
+                             * pstmt.executeUpdate();
+                             * } catch (SQLException e) {
+                             * e.printStackTrace();
+                             * }
+                             */
+
                             // Add a new item to the to-do list
                             String description = input.readUTF();
                             boolean isComplete = input.readBoolean();
                             ToDoItem item = new ToDoItem(description, isComplete);
                             toDoList.add(item);
+
                             break;
 
                         case 3:
@@ -119,4 +159,8 @@ class ToDoListServer {
             }
         }
     }
+    // code to persist the TODOlist in a mysql database
+    // connect to a mysql database on localhost:3306 to table TODOlist
+    //
+
 }
